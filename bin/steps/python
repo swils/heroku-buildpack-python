@@ -23,18 +23,29 @@ fi
 
 if [ ! "$SKIP_INSTALL" ]; then
   bpwatch start install_python
+    WORKING_DIR=$(pwd)
+    TMPTARDIR=$(mktemp -d)
+    trap "rm -rf $TMPTARDIR" RETURN
+    
     puts-step "Installing runtime ($PYTHON_VERSION)"
 
     # Prepare destination directory.
     mkdir -p .heroku/python
 
-    curl https://lang-python.s3.amazonaws.com/$STACK/runtimes/$PYTHON_VERSION.tar.gz -s | tar zxv -C .heroku/python &> /dev/null
-    if [[ $? != 0 ]] ; then
-      puts-warn "Requested runtime ($PYTHON_VERSION) is not available for this stack ($STACK)."
-      puts-warn "Aborting.  More info: https://devcenter.heroku.com/articles/python-support"
-      exit 1
-    fi
+    puts-step "Downloading from https://python.org..."
+    cd $TMPTARDIR
+    curl -L https://python.org/ftp/python/$PYTHON_VERSION/Python-$PYTHON_VERSION.tgz | tar xz
+    mv Python-2.7.10 src
+    cd src
 
+    puts-step "Configuring Python..."
+    ./configure --prefix=/app/.heroku/python --with-ensurepip=no --enable-shared
+    puts-step "Building Python..."
+    make
+    puts-step "Installing Python..."
+    make install
+
+    cd $WORKING_DIR
   bpwatch stop install_python
 
   # Record for future reference.
